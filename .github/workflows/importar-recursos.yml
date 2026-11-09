@@ -1,0 +1,40 @@
+name: Importar recursos de la presentación
+on:
+  push:
+    paths:
+      - '.github/workflows/importar-recursos.yml'
+  workflow_dispatch:
+permissions:
+  contents: write
+jobs:
+  importar:
+    runs-on: ubuntu-latest
+    steps:
+      - name: Obtener repositorio
+        uses: actions/checkout@v4
+      - name: Descargar recursos originales
+        run: |
+          curl -fL --retry 3 --connect-timeout 20 'https://d2ol7oe51mr4n9.cloudfront.net/user_3KM1i68WzoMycIhLcUohelMr8hL/6a65b31c-3001-441e-af02-6b0ea1fc63ce.zip' -o /tmp/isc_resources.zip
+          python3 - <<'PY'
+          import zipfile, pathlib
+          with zipfile.ZipFile('/tmp/isc_resources.zip') as archive:
+              count = 0
+              for entry in archive.infolist():
+                  if not entry.filename.startswith('ISC_Defensa_Web/assets/') or entry.is_dir():
+                      continue
+                  relative = entry.filename.removeprefix('ISC_Defensa_Web/')
+                  destination = pathlib.Path(relative)
+                  destination.parent.mkdir(parents=True, exist_ok=True)
+                  destination.write_bytes(archive.read(entry))
+                  count += 1
+              print('Recursos extraídos:', count)
+              assert count >= 45, 'No se encontraron todos los recursos'
+          PY
+      - name: Guardar imágenes y habilitar Pages
+        run: |
+          touch .nojekyll
+          git config user.name 'github-actions[bot]'
+          git config user.email '41898282+github-actions[bot]@users.noreply.github.com'
+          git add assets/ .nojekyll
+          git commit -m 'Agregar fotografías, emblemas y componentes 3D'
+          git push
